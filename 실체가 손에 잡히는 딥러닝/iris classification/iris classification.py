@@ -49,10 +49,15 @@ class BaseLayer:
         # 가중치(행렬)과 편향(벡터)
         self.w = wb_width * np.random.randn(n_upper, n)  # 가중치
         self.b = wb_width * np.random.randn(n)  # 편향
+        self.h_w = np.zeros(( n_upper, n)) +1e-8
+        self.h_b = np.zeros(n) + 1e-8
 
     def update(self, eta):
-        self.w -= eta * self.grad_w
-        self.b -= eta * self.grad_b
+        self.h_w += self.grad_w * self.grad_w
+        self.w -= eta / np.sqrt(self.h_w) * self.grad_w
+
+        self.h_b += self.grad_b * self.grad_b
+        self.b -= eta / np.sqrt(self.h_b) * self.grad_b
 
 
 # 은닉층
@@ -88,23 +93,46 @@ class OutputLayer(BaseLayer):
         self.grad_x = np.dot(delta, self.w.T)
 
 
+# Dropout 구현
+class Dropout:
+    def __init__(self, dropout_ratio):
+        self.dropout_ratio = dropout_ratio
+
+    def forward(self, x, is_train):  # is_train: 학습할 때는 True
+        if is_train:
+            rand = np.random.rand(*x.shape)  # 난수 행렬
+            self.dropout = np.where(rand > self.dropout_ratio, 1, 0)
+            self.y = x * self.dropout
+        else:
+            self.y = (1-self.dropout_ratio) * x
+
+    def backward(self, grad_y):
+        self.grad_x = grad_y * self.dropout
+
+
 # 각 층 초기화
 middle_layer_1 = MiddleLayer(n_in, n_mid)
+dropout_1 = Dropout(0.5)
 middle_layer_2 = MiddleLayer(n_mid, n_mid)
+dropout_2 = Dropout(0.5)
 output_layer = OutputLayer(n_mid, n_out)
 
 
 # 순전파
-def forward_propagation(x):
+def forward_propagation(x, is_train):
     middle_layer_1.forward(x)
+    dropout_1.forward(middle_layer_1.y, is_train)
     middle_layer_2.forward(middle_layer_1.y)
+    dropout_2.forward(middle_layer_2.y, is_train)
     output_layer.forward(middle_layer_2.y)
 
 
 # 역전파
 def backpropagation(t):
     output_layer.backward(t)
+    dropout_2.backward(output_layer.grad_x)
     middle_layer_2.backward(output_layer.grad_x)
+    dropout_1.backward(middle_layer_2.grad_x)
     middle_layer_1.backward(middle_layer_2.grad_x)
 
 
@@ -131,9 +159,9 @@ n_batch = n_train // batch_size  # 1에포크당 배치 수
 for i in range(epoch):
 
     # 오차 계측
-    forward_propagation(input_train)
+    forward_propagation(input_train, 1)
     error_train = get_error(correct_train, n_train)
-    forward_propagation(input_test)
+    forward_propagation(input_test, 1)
     error_test = get_error(correct_test, n_test)
 
     # 오차 기록
@@ -159,7 +187,7 @@ for i in range(epoch):
         t = correct_train[mb_index, :]
 
         # 순전파와 역전파
-        forward_propagation(x)
+        forward_propagation(x, 1)
         backpropagation(t)
 
         # 가중치와 편향 수정
@@ -176,11 +204,11 @@ plt.ylabel("Error")
 plt.show()
 
 # 정답률 측정
-forward_propagation(input_train)
+forward_propagation(input_train, 1)
 count_train = np.sum(np.argmax(output_layer.y,
                      axis=1) ==np.argmax(correct_train, axis=1))
 
-forward_propagation(input_test)
+forward_propagation(input_test, 1)
 count_test = np.sum(np.argmax(output_layer.y,
                               axis=1) == np.argmax(correct_test, axis=1))
 
