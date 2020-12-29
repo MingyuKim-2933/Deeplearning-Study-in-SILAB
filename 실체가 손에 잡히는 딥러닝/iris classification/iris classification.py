@@ -212,6 +212,6 @@ forward_propagation(input_test, 1)
 count_test = np.sum(np.argmax(output_layer.y,
                               axis=1) == np.argmax(correct_test, axis=1))
 
-print("Accouracy Train:", str(count_train/n_train*100) + "%",
-      "Accouracy Test:", str(count_test/n_test*100) + "%")
+print("Accuracy Train:", str(count_train/n_train*100) + "%",
+      "Accuracy Test:", str(count_test/n_test*100) + "%")
 
