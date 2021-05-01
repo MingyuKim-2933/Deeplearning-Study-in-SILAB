@@ -178,7 +178,7 @@ for i in range(epoch):
 
     # 학습
     index_random = np.arange(n_train)
-    np.random.shuffle(index_random)  # 인데스 임의 섞기
+    np.random.shuffle(index_random)  # 인덱스 임의 섞기
     for j in range(n_batch):
 
         # 미니 배치법 구현
